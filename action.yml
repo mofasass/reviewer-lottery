@@ -8,6 +8,9 @@ inputs:
   repo-token:
     description: "Github token secret"
     required: true
+  slack-webhook-url:
+    description: "Slack webhook URL"
+    required: true
   config:
     description: 'Path to config file'
     default: '.github/reviewer-lottery.yml'
