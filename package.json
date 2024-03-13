@@ -27,6 +27,8 @@
   "dependencies": {
     "@actions/core": "^1.9.1",
     "@octokit/rest": "^17.11.2",
+    "@slack/web-api": "^7.0.2",
+    "@slack/webhook": "^7.0.2",
     "@types/js-yaml": "^4.0.5"
   },
   "devDependencies": {

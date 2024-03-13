@@ -1,11 +1,14 @@
 import * as core from '@actions/core'
 import {Octokit} from '@octokit/rest'
 import {Config} from './config'
+import {IncomingWebhook} from '@slack/webhook'
 
 export interface Pull {
   user: {login: string} | null
   number: number
   draft?: boolean
+  title: string
+  url: string
 }
 interface Env {
   repository: string
@@ -17,15 +20,18 @@ class Lottery {
   config: Config
   env: Env
   pr: Pull | undefined | null
+  incomingWebhook: IncomingWebhook
 
   constructor({
     octokit,
     config,
-    env
+    env,
+    incomingWebhook
   }: {
     octokit: Octokit
     config: Config
     env: Env
+    incomingWebhook: IncomingWebhook
   }) {
     this.octokit = octokit
     this.config = config
@@ -34,6 +40,7 @@ class Lottery {
       ref: env.ref
     }
     this.pr = undefined
+    this.incomingWebhook = incomingWebhook
   }
 
   async run(): Promise<void> {
@@ -71,6 +78,33 @@ class Lottery {
     })
   }
 
+  async alertOnSlack(reviewers: string[]): Promise<void> {
+    const usernameToSlackMap: Record<string, string> = {}
+
+    for (const {usernames: usernamesIncludingSlackName} of this.config.groups) {
+      for (const user of usernamesIncludingSlackName) {
+        const [username, slackName] = user.split(':')
+        usernameToSlackMap[username] = slackName
+      }
+    }
+
+    const slackUsernames = reviewers
+      .map(username => `@${usernameToSlackMap[username]}`)
+      .join(', ')
+
+    this.incomingWebhook.send({
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `${slackUsernames} Have been assigned to _${this.pr?.title}_. \n\n<${this.pr?.url}|View pull request>`
+          }
+        }
+      ]
+    })
+  }
+
   async selectReviewers(): Promise<string[]> {
     let selected: string[] = []
     const author = await this.getPRAuthor()
@@ -79,8 +113,11 @@ class Lottery {
       for (const {
         reviewers,
         internal_reviewers: internalReviewers,
-        usernames
+        usernames: usernamesIncludingSlackName
       } of this.config.groups) {
+        const usernames = usernamesIncludingSlackName.map(
+          name => name.split(':')[0]
+        )
         const reviewersToRequest =
           usernames.includes(author) && internalReviewers
             ? internalReviewers
@@ -88,7 +125,11 @@ class Lottery {
 
         if (reviewersToRequest) {
           selected = selected.concat(
-            this.pickRandom(usernames, reviewersToRequest, selected.concat(author))
+            this.pickRandom(
+              usernames,
+              reviewersToRequest,
+              selected.concat(author)
+            )
           )
         }
       }
@@ -103,7 +144,7 @@ class Lottery {
   pickRandom(items: string[], n: number, ignore: string[]): string[] {
     const picks: string[] = []
 
-    const candidates = items.filter(item => !ignore.includes(item));
+    const candidates = items.filter(item => !ignore.includes(item))
 
     while (picks.length < n) {
       const random = Math.floor(Math.random() * candidates.length)
@@ -165,12 +206,13 @@ class Lottery {
 export const runLottery = async (
   octokit: Octokit,
   config: Config,
+  incomingWebhook: IncomingWebhook,
   env = {
     repository: process.env.GITHUB_REPOSITORY || '',
     ref: process.env.GITHUB_HEAD_REF || ''
   }
 ): Promise<void> => {
-  const lottery = new Lottery({octokit, config, env})
+  const lottery = new Lottery({octokit, config, env, incomingWebhook})
 
   await lottery.run()
 }
