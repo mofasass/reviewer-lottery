@@ -49,6 +49,7 @@ class Lottery {
       if (ready) {
         const reviewers = await this.selectReviewers()
         reviewers.length > 0 && (await this.setReviewers(reviewers))
+        reviewers.length > 0 && (await this.alertOnSlack(reviewers))
       }
     } catch (error: any) {
       core.error(error)
