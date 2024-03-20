@@ -44,6 +44,7 @@ class Lottery {
   }
 
   async run(): Promise<void> {
+    console.log('RUNNING LOTTERY RUN FUNCTION')
     try {
       const ready = await this.isReadyToReview()
       if (ready) {
@@ -82,12 +83,15 @@ class Lottery {
   async alertOnSlack(reviewers: string[]): Promise<void> {
     const usernameToSlackMap: Record<string, string> = {}
 
-    for (const {usernames: usernamesIncludingSlackName} of this.config.groups) {
-      for (const user of usernamesIncludingSlackName) {
-        const [username, slackName] = user.split(':')
-        usernameToSlackMap[username] = slackName
+    for (const {usernames: usernamesIncludingSlackEmail} of this.config
+      .groups) {
+      for (const user of usernamesIncludingSlackEmail) {
+        const [username, slackEmail] = user.split(':')
+        usernameToSlackMap[username] = slackEmail
       }
     }
+
+    console.log('usernameToSlackMap', usernameToSlackMap)
 
     const slackUsernames = reviewers
       .map(username => `@${usernameToSlackMap[username]}`)
@@ -99,7 +103,7 @@ class Lottery {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `${slackUsernames} Have been assigned to _${this.pr?.title}_. \n\n<${this.pr?.url}|View pull request>`
+            text: `<${slackUsernames}> Has been assigned to _${this.pr?.title}_. \n\n<${this.pr?.url}|View pull request>`
           }
         }
       ]
@@ -213,6 +217,7 @@ export const runLottery = async (
     ref: process.env.GITHUB_HEAD_REF || ''
   }
 ): Promise<void> => {
+  console.log('RUNNING LOTTERY FUNCTION')
   const lottery = new Lottery({octokit, config, env, incomingWebhook})
 
   await lottery.run()

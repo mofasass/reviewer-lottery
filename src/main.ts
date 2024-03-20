@@ -4,9 +4,11 @@ import {Octokit} from '@octokit/rest'
 import {getConfig} from './config'
 import {IncomingWebhook} from '@slack/webhook'
 
+core.setCommandEcho(true)
+
 async function run(): Promise<void> {
   try {
-    if (!process.env.GITHUB_REF) throw new Error('missing GITHUB_REF')
+    if (!process.env.GITHUB_HEAD_REF) throw new Error('missing GITHUB_HEAD_REF')
     if (!process.env.GITHUB_REPOSITORY)
       throw new Error('missing GITHUB_REPOSITORY')
     //comes from {{secrets.GITHUB_TOKEN}}
@@ -23,5 +25,7 @@ async function run(): Promise<void> {
     core.setFailed(error.message)
   }
 }
+
+console.log('RUNNING MAIN FUNCTION')
 
 run()
